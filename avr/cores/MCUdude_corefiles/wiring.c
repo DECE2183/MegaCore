@@ -24,7 +24,7 @@
 
 // the prescaler is set so that timer0 ticks every 64 clock cycles, and the
 // the overflow handler is called every 256 ticks.
-// 24MHz: An overflow happens every 682.67 microseconds ---> 0.04167, so this results in 682 
+// 24MHz: An overflow happens every 682.67 microseconds ---> 0.04167, so this results in 682
 // 20MHz: An overflow happens every 819.2 microseconds ---> 0,05 (time of a cycle in micros) * 64 (timer0 tick) * 256 (every 256 ticks timer0 overflows), so this results in 819
 // 16MHz: An overflow happens every 1024 microseconds
 #define MICROSECONDS_PER_TIMER0_OVERFLOW (clockCyclesToMicroseconds(64 * 256))
@@ -39,26 +39,26 @@
 // about - 8 and 16 MHz - this doesn't lose precision.)
 // For 16 MHz: 24 (1024 % 1000) gets shifted right by 3 which results in 3   (precision was lost)
 // For 20 MHz: 819 (819 % 1000) gets shifted right by 3 which results in 102 (precision was lost)
-// For 24 MHz: 682 (682 % 1000) gets shifted right by 3 which results in 
+// For 24 MHz: 682 (682 % 1000) gets shifted right by 3 which results in
 #define FRACT_INC ((MICROSECONDS_PER_TIMER0_OVERFLOW % 1000) >> 3)
 // Shift right by 3 to fit in a byte (results in 125)
 #define FRACT_MAX (1000 >> 3)
 
-volatile unsigned long timer0_overflow_count = 0;
-volatile unsigned long timer0_millis = 0;
-static unsigned char timer0_fract = 0;
+volatile unsigned long timer2_overflow_count = 0;
+volatile unsigned long timer2_millis = 0;
+static unsigned char timer2_fract = 0;
 
 // timer0 interrupt routine ,- is called every time timer0 overflows
 #if defined(__AVR_ATtiny24__) || defined(__AVR_ATtiny44__) || defined(__AVR_ATtiny84__)
-ISR(TIM0_OVF_vect)
+ISR(TIM2_OVF_vect)
 #else
-ISR(TIMER0_OVF_vect)
+ISR(TIMER2_OVF_vect)
 #endif
 {
   // copy these to local variables so they can be stored in registers
   // (volatile variables must be read from memory on every access, so this saves time)
-  unsigned long m = timer0_millis;
-  unsigned char f = timer0_fract;
+  unsigned long m = timer2_millis;
+  unsigned char f = timer2_fract;
 
   m += MILLIS_INC;
   f += FRACT_INC;
@@ -67,9 +67,9 @@ ISR(TIMER0_OVF_vect)
     m += 1;
   }
 
-  timer0_fract = f;
-  timer0_millis = m;
-  timer0_overflow_count++;
+  timer2_fract = f;
+  timer2_millis = m;
+  timer2_overflow_count++;
 }
 
 unsigned long millis()
@@ -77,10 +77,10 @@ unsigned long millis()
   unsigned long m;
   uint8_t oldSREG = SREG;
 
-  // disable interrupts while we read timer0_millis or we might get an
-  // inconsistent value (e.g. in the middle of a write to timer0_millis)
+  // disable interrupts while we read timer2_millis or we might get an
+  // inconsistent value (e.g. in the middle of a write to timer2_millis)
   cli();
-  m = timer0_millis;
+  m = timer2_millis;
   SREG = oldSREG;
 
   return m;
@@ -94,23 +94,23 @@ unsigned long micros() {
 
   // Stop all interrupts
   cli();
-  m = timer0_overflow_count;
+  m = timer2_overflow_count;
 
   // TCNT0 : The Timer Counter Register
-#if defined(TCNT0)
-  t = TCNT0;
-#elif defined(TCNT0L)
-  t = TCNT0L;
+#if defined(TCNT2)
+  t = TCNT2;
+#elif defined(TCNT2L)
+  t = TCNT2L;
 #else
-  #error TIMER 0 not defined
+  #error TIMER 2 not defined
 #endif
 
-  // Timer0 Interrupt Flag Register
-#ifdef TIFR0
-  if ((TIFR0 & _BV(TOV0)) && (t < 255))
+  // Timer2 Interrupt Flag Register
+#ifdef TIFR2
+  if ((TIFR2 & _BV(TOV2)) && (t < 255))
     m++;
 #else
-  if ((TIFR & _BV(TOV0)) && (t < 255))
+  if ((TIFR & _BV(TOV2)) && (t < 255))
     m++;
 #endif
   // Restore SREG
@@ -122,7 +122,7 @@ unsigned long micros() {
   m = (m << 8) + t;
   return (m << 1) + (m >> 1) + (m >> 3) + (m >> 4); // Multiply by 2.6875
 #elif F_CPU >= 20000000L
-  // m needs to be multiplied by 819.2 
+  // m needs to be multiplied by 819.2
   // t needs to be multiplied by 3.2
   m = (m << 8) + t;
   return m + (m << 1) + (m >> 2) - (m >> 4); // Multiply by 3.1875
@@ -163,7 +163,7 @@ unsigned long micros() {
   return (m << 5) + (m << 1) + (m >> 1) + (m >> 2); // Multiply by 34.75
 #else
   // 32 MHz, 24 MHz, 16 MHz, 8 MHz, 4 MHz, 1 MHz
-  // Shift by 8 to the left (multiply by 256) so t (which is 1 byte in size) can fit in 
+  // Shift by 8 to the left (multiply by 256) so t (which is 1 byte in size) can fit in
   // m & t are multiplied by 4 (since it was already multiplied by 256)
   // t is multiplied by 4
   return ((m << 8) + t) * (64 / clockCyclesPerMicrosecond());
@@ -268,10 +268,10 @@ void delayMicroseconds(unsigned int us)
     // additionaly, since we are not 100% precise (we are slower), subtract a bit more to fit for small values
     // us is at least 46, so we can substract 18
     us -= 19; // 2 cycles
-  } 
-  
-  else 
-  { 
+  }
+
+  else
+  {
     // account for the time taken in the preceeding commands.
     // we just burned 30 (32) cycles above, remove 8, (8*4=32)
     // us is at least 10, so we can substract 8
@@ -298,7 +298,7 @@ void delayMicroseconds(unsigned int us)
   if (us <= 2)
     return;
 
-  else if (us <= 9) 
+  else if (us <= 9)
   {
     us -= 2; // The requested microseconds are too small to multiplicate correct, so we do an approximation
     us = (us << 2); // Subtract microseconds that were wasted in this function
@@ -315,7 +315,7 @@ void delayMicroseconds(unsigned int us)
     "nop" "\n\t"
     "nop" "\n\t"
     "nop"); // Wait 3 cycles to accomodate imprecisions in approximation
-  } 
+  }
 
 #elif F_CPU >= 12000000L
   // for the 12 MHz clock if somebody is working with USB
@@ -489,7 +489,7 @@ void init()
   // this needs to be called before setup() or some functions won't
   // work there
   sei();
-  
+
   // on the ATmega168, timer 0 is also used for fast hardware pwm
   // (using phase-correct PWM would mean that timer 0 overflowed half as often
   // resulting in different millis() behavior on the ATmega8 and ATmega168)
@@ -502,8 +502,8 @@ void init()
 #if defined(__AVR_ATmega64__) || defined(__AVR_ATmega128__)
   // CPU specific: different values for the ATmega64/128
   sbi(TCCR0, WGM00);
-  sbi(TCCR0, WGM01);
-  sbi(TCCR0, CS02);
+  // sbi(TCCR0, WGM01);
+  // sbi(TCCR0, CS02);
 #elif defined(TCCR0) && defined(CS01) && defined(CS00)
   // this combination is for the ATmega8535, ATmega8, ATmega16, ATmega32, ATmega8515, ATmega162
   sbi(TCCR0, CS01);
@@ -524,13 +524,13 @@ void init()
   #error Timer 0 prescale factor 64 not set correctly
 #endif
 
-  // enable timer 0 overflow interrupt
-#if defined(TIMSK) && defined(TOIE0)
-  sbi(TIMSK, TOIE0);
-#elif defined(TIMSK0) && defined(TOIE0)
-  sbi(TIMSK0, TOIE0);
+  // enable timer 2 overflow interrupt
+#if defined(TIMSK) && defined(TOIE2)
+  sbi(TIMSK, TOIE2);
+#elif defined(TIMSK0) && defined(TOIE2)
+  sbi(TIMSK0, TOIE2);
 #else
-  #error  Timer 0 overflow interrupt not set correctly
+  #error  Timer 2 overflow interrupt not set correctly
 #endif
 
   // timers 1 and 2 are used for phase-correct hardware pwm
@@ -558,8 +558,9 @@ void init()
 #endif
 
   // set timer 2 prescale factor to 64
-#if defined(TCCR2) && defined(CS22)
-  sbi(TCCR2, CS22);
+#if defined(TCCR2) && defined(CS21) && defined(CS20)
+  sbi(TCCR2, CS21);
+  sbi(TCCR2, CS20);
 #elif defined(TCCR2B) && defined(CS22)
   sbi(TCCR2B, CS22);
 #elif defined(TCCR2A) && defined(CS22)
@@ -569,8 +570,9 @@ void init()
 #endif
 
   // configure timer 2 for phase correct pwm (8-bit)
-#if defined(TCCR2) && defined(WGM20)
+#if defined(TCCR2) && defined(WGM20) && defined(WGM21)
   sbi(TCCR2, WGM20);
+  sbi(TCCR2, WGM21);
 #elif defined(TCCR2A) && defined(WGM20)
   sbi(TCCR2A, WGM20);
 //#else
@@ -587,7 +589,7 @@ void init()
   sbi(TCCR4B, CS42);    // set timer4 prescale factor to 64
   sbi(TCCR4B, CS41);
   sbi(TCCR4B, CS40);
-  sbi(TCCR4D, WGM40);   // put timer 4 in phase- and frequency-correct PWM mode 
+  sbi(TCCR4D, WGM40);   // put timer 4 in phase- and frequency-correct PWM mode
   sbi(TCCR4A, PWM4A);   // enable PWM mode for comparator OCR4A
   sbi(TCCR4C, PWM4D);   // enable PWM mode for comparator OCR4D
 #else /* beginning of timer4 block for ATMEGA640, ATMEGA1280 and ATMEGA2560 */
@@ -596,7 +598,7 @@ void init()
   sbi(TCCR4B, CS40);
   sbi(TCCR4A, WGM40);   // put timer 4 in 8-bit phase correct pwm mode
 #endif
-#endif /* end timer4 block for ATMEGA640/1280/2560 and similar */ 
+#endif /* end timer4 block for ATMEGA640/1280/2560 and similar */
 
 #if defined(TCCR5B) && defined(CS51) && defined(WGM50)
   sbi(TCCR5B, CS51);    // set timer 5 prescale factor to 64

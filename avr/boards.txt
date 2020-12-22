@@ -39,7 +39,7 @@ menu.bootloader=Bootloader
 ############################
 
 # General
-Sumiko.name=_Sumiko (ATmega128)
+Sumiko.name=_Sumiko
 
 Sumiko.upload.tool=avrdude
 Sumiko.upload.maximum_data_size=4096
@@ -79,3 +79,50 @@ Sumiko.menu.bootloader.no_bootloader=No bootloader
 Sumiko.menu.bootloader.no_bootloader.upload.maximum_size=131072
 Sumiko.menu.bootloader.no_bootloader.bootloader.bootrst_bit=1
 Sumiko.menu.bootloader.no_bootloader.bootloader.file=empty/empty.hex
+
+
+################################
+#### ATmega128/A Sumiko PRO ####
+################################
+
+# General
+SumikoPRO.name=_Sumiko PRO
+
+SumikoPRO.upload.tool=avrdude
+SumikoPRO.upload.maximum_data_size=4096
+SumikoPRO.upload.speed=115200
+
+SumikoPRO.bootloader.tool=avrdude
+SumikoPRO.bootloader.unlock_bits=0x3f
+SumikoPRO.bootloader.lock_bits=0x0f
+SumikoPRO.bootloader.sut_cksel_bits=111111
+SumikoPRO.bootloader.ckopt_bit=0
+SumikoPRO.bootloader.bod_bits=00
+SumikoPRO.bootloader.low_fuses=0b{bootloader.bod_bits}{bootloader.sut_cksel_bits}
+SumikoPRO.bootloader.high_fuses=0b110{bootloader.ckopt_bit}011{bootloader.bootrst_bit}
+SumikoPRO.bootloader.extended_fuses=0xff
+
+SumikoPRO.build.core=MCUdude_corefiles
+SumikoPRO.build.variant=64-pin-sumiko-10
+SumikoPRO.build.board=SUMIKO
+SumikoPRO.build.mcu=atmega128
+SumikoPRO.build.f_cpu=20000000L
+SumikoPRO.build.bootloader_led=B5
+
+SumikoPRO.compiler.c.extra_flags=-Wextra -flto -g
+SumikoPRO.compiler.c.elf.extra_flags=-w -flto -g
+SumikoPRO.compiler.cpp.extra_flags=-Wextra -flto -g
+SumikoPRO.ltoarcmd=avr-gcc-ar
+
+# Upload port select
+SumikoPRO.menu.bootloader.uart0=Yes (UART0)
+SumikoPRO.menu.bootloader.uart0.upload.maximum_size=130048
+SumikoPRO.menu.bootloader.uart0.upload.protocol=arduino
+SumikoPRO.menu.bootloader.uart0.upload.port=UART0
+SumikoPRO.menu.bootloader.uart0.bootloader.bootrst_bit=0
+SumikoPRO.menu.bootloader.uart0.bootloader.file=optiboot_flash/bootloaders/{build.mcu}/{build.f_cpu}/optiboot_flash_{build.mcu}_{upload.port}_{upload.speed}_{build.f_cpu}_{build.bootloader_led}_BIGBOOT.hex
+
+SumikoPRO.menu.bootloader.no_bootloader=No bootloader
+SumikoPRO.menu.bootloader.no_bootloader.upload.maximum_size=131072
+SumikoPRO.menu.bootloader.no_bootloader.bootloader.bootrst_bit=1
+SumikoPRO.menu.bootloader.no_bootloader.bootloader.file=empty/empty.hex
